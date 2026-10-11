@@ -1,0 +1,12 @@
+secrets.yaml
+secrets.*.yaml
+!secrets.yaml.example
+.esphome/
+.ci-build/
+.venv/
+.platformio/
+__pycache__/
+*.pyc
+*.bin
+*.elf
+.DS_Store
