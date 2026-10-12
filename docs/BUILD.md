@@ -41,3 +41,11 @@ Home Assistant selbst mit den bestehenden Secrets kompilieren.
 
 Es wurde kein Gerät geflasht. Sämtliche Hardwaretests sind offen, siehe
 [HARDWARE_TESTS.md](HARDWARE_TESTS.md).
+
+## Regression in v1.0.1
+
+Am 12. Oktober 2026 wurde ein frischer ESP8266-Build ohne vorhandene
+Compilerobjekte und ohne `platformio_options` in der Test-YAML erfolgreich
+durchgeführt. Die Komponente setzt `lib_ldf_mode: chain+` selbst. Adafruit
+GFX und BusIO wurden neu kompiliert; der Headerfehler tritt im Test nicht auf.
+RAM: 31612 Byte; Flash: 387179 Byte. Hardwaretests bleiben offen.

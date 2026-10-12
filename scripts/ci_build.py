@@ -13,11 +13,13 @@ BUILD.mkdir(exist_ok=True)
 source = (ROOT / "bilderrahmen.yaml").read_text()
 remote = """      type: git
       url: https://github.com/danhae/esphome-gxepd2-esp8266
-      ref: v1.0.0
+      ref: v1.0.1
       path: components"""
 if source.count(remote) != 1:
     raise SystemExit("Expected exactly one pinned external component source")
 config = source.replace(remote, "      type: local\n      path: ../components")
+# Regression: dependency discovery must also work without the YAML option.
+config = config.replace("  platformio_options:\n    lib_ldf_mode: chain+\n", "")
 (BUILD / "test.yaml").write_text(config)
 secrets = {
     "wifi_ssid": "build-validation-only",

@@ -24,7 +24,7 @@ diese ESPHome-Implementierung wurde noch nicht am Gerät getestet.
 
 Die Komponente wird automatisch von GitHub geladen. Zusätzliche lokale
 Komponentendateien sind für diesen Installationsweg nicht erforderlich.
-Die YAML verwendet den festen Tag `v1.0.0`; Änderungen auf `main` werden
+Die YAML verwendet den festen Tag `v1.0.1`; Änderungen auf `main` werden
 nicht ungefragt übernommen.
 
 ```yaml
@@ -32,7 +32,7 @@ external_components:
   - source:
       type: git
       url: https://github.com/danhae/esphome-gxepd2-esp8266
-      ref: v1.0.0
+      ref: v1.0.1
       path: components
     components: [gxepd2_frame]
 ```
@@ -83,7 +83,8 @@ offiziellen GxEPD2-Releases nicht bestätigen. Dieses Projekt verwendet die
 verfügbare feste Version 1.6.9 mit unveränderter Displayklasse.
 
 Wire wird wegen der Adafruit-Header explizit eingebunden, I2C aber nicht
-initialisiert. `lib_ldf_mode: chain+` löst die Abhängigkeiten der Arduino-
+initialisiert. Die Komponente aktiviert `lib_ldf_mode: chain+` selbst; die YAML enthält
+diese Einstellung zusätzlich ausdrücklich. Damit werden die Abhängigkeiten der Arduino-
 Bibliotheken auf. Kein Fork und keine Änderungen an GxEPD2.
 
 ## Ablauf und Einschränkungen

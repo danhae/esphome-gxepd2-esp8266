@@ -14,6 +14,9 @@ CONFIG_SCHEMA = cv.All(
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
+    # ESPHome defaults to LDF off; GFX itself includes BusIO headers.
+    # Resolve library-to-library includes even when YAML omits this option.
+    cg.add_platformio_option("lib_ldf_mode", "chain+")
     cg.add_library("SPI", None)
     cg.add_library("Wire", None)  # Adafruit GFX/BusIO headers require Wire.h.
     cg.add_library("zinggjm/GxEPD2", "1.6.9")

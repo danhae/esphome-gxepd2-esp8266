@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.1
+
+- The component enables PlatformIO chain+ dependency discovery itself.
+- Regression build omits the YAML platformio_options block to verify BusIO header resolution.
+- Existing v1.0.0 tag remains unchanged.
+
 ## v1.0.0
 
 - ESP8266-only external component for ESPHome 2026.9.1.
