@@ -13,7 +13,7 @@ BUILD.mkdir(exist_ok=True)
 source = (ROOT / "bilderrahmen.yaml").read_text()
 remote = """      type: git
       url: https://github.com/danhae/esphome-gxepd2-esp8266
-      ref: v1.0.2
+      ref: v1.1.0-beta.1
       path: components"""
 if source.count(remote) != 1:
     raise SystemExit("Expected exactly one pinned external component source")
@@ -28,8 +28,9 @@ secrets = {
 }
 (BUILD / "secrets.yaml").write_text(yaml.safe_dump(secrets))
 os.chmod(BUILD / "secrets.yaml", 0o600)
-for action in ("config", "compile"):
+# Source generation only: firmware compilation is performed by the user.
+for args in (["config"], ["compile", "--only-generate"]):
     subprocess.run(
-        [sys.executable, "-m", "esphome", action, str(BUILD / "test.yaml")],
+        [sys.executable, "-m", "esphome", *args, str(BUILD / "test.yaml")],
         cwd=ROOT, check=True,
     )

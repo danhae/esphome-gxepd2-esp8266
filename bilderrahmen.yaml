@@ -30,14 +30,37 @@ external_components:
   - source:
       type: git
       url: https://github.com/danhae/esphome-gxepd2-esp8266
-      ref: v1.0.2
+      ref: v1.1.0-beta.1
       path: components
     components: [gxepd2_frame]
 
+http_request:
+  id: epaper_http
+  timeout: 5s
+  follow_redirects: false
+  verify_ssl: false
+  esp8266_disable_ssl_support: true
+
 gxepd2_frame:
   id: epaper_frame
+  http_request_id: epaper_http
+
+text:
+  - platform: template
+    name: E-Paper Bild-URL
+    id: epaper_image_url
+    mode: text
+    optimistic: true
+    restore_value: true
+    max_length: 255
 
 button:
+  - platform: template
+    name: E-Paper Bild aktualisieren
+    id: epaper_bild_aktualisieren
+    on_press:
+      - lambda: |-
+          id(epaper_frame).request_image_url(id(epaper_image_url).state);
   - platform: template
     name: E-Paper Testbild anzeigen
     id: epaper_testbild_anzeigen

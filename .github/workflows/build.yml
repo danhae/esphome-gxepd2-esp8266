@@ -1,4 +1,4 @@
-name: ESP8266 firmware build
+name: ESP8266 source and image validation
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  source_validation:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -21,8 +21,12 @@ jobs:
           cache: pip
       - name: Install ESPHome 2026.9.1
         run: python -m pip install -r requirements.txt
-      - name: Validate and compile ESP8266 firmware
+      - name: Validate YAML and generate source (no firmware compilation)
         run: python scripts/ci_build.py
+      - name: Test image conversion
+        run: python -m unittest discover -s tests -v
+      - name: Test component streaming with host mocks
+        run: python scripts/test_stream.py
 
   blueprint:
     runs-on: ubuntu-latest

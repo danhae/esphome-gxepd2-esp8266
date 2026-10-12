@@ -59,3 +59,16 @@ gegen eine isolierte Home-Assistant-2026.10.1-Installation validiert.
 Keine Aktionen auf echten Geräten ausgeführt; der Live-Automationstest ist offen.
 BUSY nach Hibernate ist jetzt nur eine Diagnose. Zeitmessungen sind pro
 Bibliotheksaufruf; sie ersetzen keine eindeutige Timeout-Rückmeldung.
+
+## v1.1.0-beta.1 — eigene Bilder
+
+Keine ESP8266-Firmware-Kompilierung: der Benutzer kompiliert selbst.
+ESPHome 2026.9.1: vollständige YAML validiert, Quellcode mit --only-generate erzeugt.
+Konverter: Weiß-/Schwarz-Polarität, Transparenz, Seitenverhältnis, CRC,
+Abschneiden/Anhängen und atomare Veröffentlichung getestet.
+Hostseitiger C++-Test des tatsächlichen Komponenten-Codes mit simuliertem
+HTTP/GxEPD2: 30 Streifen, fragmentierte Reads, CRC-Fehler, unvollständige
+Dateien, 404, Stillstand, Gesamtzeitlimit, Rendering-Sperre, URL-/Heap-Grenzen
+und BUSY LOW nach Hibernate erfolgreich geprüft. Mocks bestätigen keine
+ESP8266-Linkbarkeit, IRAM-/RAM-Werte, WLAN-Latenzen oder Displayqualität.
+Sämtliche neuen Hardwareprüfungen sind offen.

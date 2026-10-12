@@ -18,3 +18,13 @@ weder die Verkabelung noch den sichtbaren Refresh dieser ESPHome-Firmware.
 Bei Problemen zuerst WARN-/DEBUG-Logs und Heap-Werte erfassen. BUSY ist beim
 T7 aktiv LOW. Nicht auf Verdacht eine andere Displayklasse oder Pinbelegung
 wählen: GxEPD2_750_T7 und die Pins wurden im Arduino-Test bereits bestätigt.
+
+## Eigene Bilder — neue Vorschauversion
+
+- [ ] ESP8266-Build durch Benutzer erfolgreich; RAM/IRAM/Flash geprüft.
+- [ ] Demo-EPD1 von HA über HTTP wird korrekt dargestellt.
+- [ ] Eigene Fotos/Grafiken, Polarität und Zeilenreihenfolge korrekt.
+- [ ] Zweites Bild nach Hibernate funktioniert ohne Neustart.
+- [ ] 404, unvollständige Datei und CRC-Fehler lösen keinen Refresh aus.
+- [ ] Rendering-Status wird nach Fehler zurückgesetzt; anschließender neuer Versuch funktioniert.
+- [ ] Heap bei HTTP-Transfer und nach mehreren Bildern stabil; API/OTA weiterhin verfügbar.

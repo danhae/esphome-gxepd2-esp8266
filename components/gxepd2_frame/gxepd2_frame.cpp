@@ -37,9 +37,125 @@ void GxEPD2Frame::request_test_image() {
   }
   rendering_ = true;  // Set in the button action, before returning to the API.
   deadline_exceeded_ = false;
+  image_failed_ = false;
+  deadline_ms_ = 60000;
   started_at_ = millis();
   phase_ = Phase::START;
   ESP_LOGW(TAG, "Testbild startet; Heap=%u", ESP.getFreeHeap());
+}
+
+void GxEPD2Frame::request_image_url(const std::string &url) {
+  if (rendering_) {
+    ESP_LOGW(TAG, "Displayauftrag bereits aktiv; Bildaufruf verworfen");
+    return;
+  }
+  if (http_ == nullptr || url.size() > 255 || url.compare(0, 7, "http://") != 0 ||
+      url.find('@') != std::string::npos || url.find_first_of(" \r\n\t") != std::string::npos) {
+    ESP_LOGE(TAG, "Bild-URL: lokale http://-Adresse ohne Zugangsdaten erforderlich (max. 255 Zeichen)");
+    return;
+  }
+  if (ESP.getFreeHeap() < 16000 || ESP.getMaxFreeBlockSize() < 8192) {
+    ESP_LOGE(TAG, "Zu wenig Heap fuer HTTP; Bildaufruf verworfen");
+    return;
+  }
+  image_url_ = url;
+  rendering_ = true;
+  image_failed_ = false;
+  deadline_exceeded_ = false;
+  deadline_ms_ = 120000;
+  started_at_ = millis();
+  filled_ = 0;
+  payload_read_ = 0;
+  crc_ = 0xffffffffU;
+  phase_ = Phase::HTTP_OPEN;
+  ESP_LOGW(TAG, "Eigenes Bild startet; Heap=%u", ESP.getFreeHeap());
+}
+
+void GxEPD2Frame::close_image_() {
+  if (response_) {
+    response_->end();
+    response_.reset();
+  }
+  image_url_.clear();
+}
+
+void GxEPD2Frame::abort_image_(const char *reason) {
+  ESP_LOGE(TAG, "Bildtransfer abgebrochen: %s; kein Bild-Refresh ausgeloest", reason);
+  image_failed_ = true;
+  close_image_();
+  phase_ = Phase::HIBERNATE;
+}
+
+bool GxEPD2Frame::read_image_bytes_(size_t goal) {
+  const int n = response_->read(transfer_buffer_ + filled_, goal - filled_);
+  if (n > 0) {
+    filled_ += static_cast<size_t>(n);
+    last_data_ms_ = millis();
+  } else if (n < 0 || response_->is_read_complete()) {
+    abort_image_("Verbindung beendet, Datei unvollstaendig");
+    return false;
+  } else if (millis() - last_data_ms_ >= 10000) {
+    abort_image_("10 Sekunden ohne Bilddaten");
+    return false;
+  }
+  return filled_ == goal;
+}
+
+void GxEPD2Frame::image_loop_() {
+  switch (phase_) {
+    case Phase::HTTP_OPEN:
+      // No body capture or full-image allocation. HTTP connection/header open is synchronous.
+      response_ = http_->get(image_url_);
+      if (!response_ || response_->status_code != 200 ||
+          response_->content_length != image_protocol::HEADER_SIZE + image_protocol::PAYLOAD_SIZE) {
+        abort_image_("HTTP 200 und Content-Length 48016 erforderlich");
+        return;
+      }
+      last_data_ms_ = millis();
+      phase_ = Phase::HTTP_HEADER;
+      return;
+    case Phase::HTTP_HEADER:
+      if (!read_image_bytes_(image_protocol::HEADER_SIZE)) return;
+      if (!image_protocol::valid_header(transfer_buffer_)) {
+        abort_image_("Kein gueltiges EPD1-Bild mit 800x480 Pixeln");
+        return;
+      }
+      expected_crc_ = image_protocol::read32(transfer_buffer_ + 12);
+      filled_ = 0;
+      phase_ = Phase::HTTP_INIT;
+      return;
+    case Phase::HTTP_INIT:
+      display_.init(0, true, 2, false);
+      phase_ = Phase::HTTP_BODY;
+      return;
+    case Phase::HTTP_BODY:
+      if (!read_image_bytes_(image_protocol::STRIP_SIZE)) return;
+      crc_ = image_protocol::crc_update(crc_, transfer_buffer_, image_protocol::STRIP_SIZE);
+      // Controller RAM receives 16 rows; the visible panel is refreshed only after CRC validation.
+      begin_operation_();
+      display_.epd2.writeImage(transfer_buffer_, 0, payload_read_ / 100, 800, 16, false, false, false);
+      log_operation_("Bildstreifen");
+      payload_read_ += image_protocol::STRIP_SIZE;
+      filled_ = 0;
+      if (payload_read_ == image_protocol::PAYLOAD_SIZE) {
+        if ((crc_ ^ 0xffffffffU) != expected_crc_) {
+          abort_image_("CRC32 stimmt nicht");
+          return;
+        }
+        close_image_();  // Release TCP memory before the physical refresh.
+        phase_ = Phase::HTTP_REFRESH;
+      }
+      return;
+    case Phase::HTTP_REFRESH:
+      ESP_LOGW(TAG, "48000 Bildbytes und CRC32 geprueft; Display-Refresh");
+      begin_operation_();
+      display_.epd2.refresh(false);
+      log_operation_("Bildrefresh");
+      phase_ = Phase::HIBERNATE;
+      return;
+    default:
+      return;
+  }
 }
 
 void GxEPD2Frame::busy_callback_(const void *parameter) {
@@ -49,7 +165,7 @@ void GxEPD2Frame::busy_callback_(const void *parameter) {
   delay(1);  // SDK/Wi-Fi; never call App.loop() recursively.
   self->busy_callback_us_ += micros() - start;
   self->busy_callback_count_++;
-  if (self->rendering_ && millis() - self->started_at_ > 60000)
+  if (self->rendering_ && millis() - self->started_at_ > self->deadline_ms_)
     self->deadline_exceeded_ = true;
 }
 
@@ -86,8 +202,10 @@ void GxEPD2Frame::draw_page_() {
 
 void GxEPD2Frame::finish_() {
   ESP_LOGW(TAG, "%s; Dauer=%u ms, Heap=%u",
+           image_failed_ ? "Bildtransfer abgebrochen; Hibernate gesendet" :
            deadline_exceeded_ ? "Auftragszeitlimit ueberschritten; Hibernate gesendet" : "Renderdurchlauf beendet; Hibernate gesendet",
            static_cast<unsigned>(millis() - started_at_), ESP.getFreeHeap());
+  close_image_();
   rendering_ = false;
   phase_ = Phase::IDLE;
 }
@@ -95,8 +213,9 @@ void GxEPD2Frame::finish_() {
 void GxEPD2Frame::loop() {
   if (!rendering_) return;
   App.feed_wdt();
-  if (millis() - started_at_ > 60000) {
+  if (millis() - started_at_ > deadline_ms_) {
     deadline_exceeded_ = true;
+    close_image_();
     phase_ = Phase::HIBERNATE;
   }
   switch (phase_) {
@@ -121,6 +240,13 @@ void GxEPD2Frame::loop() {
       log_operation_("hibernate");
       // BUSY after power-off/deep-sleep is diagnostic only, not a refresh result.
       finish_();
+      break;
+    case Phase::HTTP_OPEN:
+    case Phase::HTTP_HEADER:
+    case Phase::HTTP_INIT:
+    case Phase::HTTP_BODY:
+    case Phase::HTTP_REFRESH:
+      image_loop_();
       break;
     case Phase::IDLE:
       break;

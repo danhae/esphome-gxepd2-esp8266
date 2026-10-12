@@ -1,0 +1,38 @@
+# Copy to /config/packages/epaper_images.yaml if packages are enabled.
+# Converter: /config/epaper/prepare_image.py
+# Source image: /config/www/epaper/input.png
+shell_command:
+  epaper_bild_vorbereiten: >-
+    python3 /config/epaper/prepare_image.py
+    --input /config/www/epaper/input.png
+    --output /config/www/epaper/frame.epd
+    --preview /config/www/epaper/preview.png
+
+script:
+  epaper_eigenes_bild:
+    alias: E-Paper — eigenes Bild vorbereiten und anzeigen
+    mode: single
+    fields:
+      bild_button:
+        name: E-Paper Bild aktualisieren
+        required: true
+        selector:
+          entity:
+            filter:
+              domain: button
+    sequence:
+      - action: shell_command.epaper_bild_vorbereiten
+        response_variable: preparation
+      - if:
+          - condition: template
+            value_template: "{{ preparation.returncode != 0 }}"
+        then:
+          - action: persistent_notification.create
+            data:
+              title: E-Paper — Bildaufbereitung fehlgeschlagen
+              message: "{{ preparation.stderr }}"
+          - stop: Bildaufbereitung fehlgeschlagen
+            error: true
+      - action: button.press
+        target:
+          entity_id: "{{ bild_button }}"

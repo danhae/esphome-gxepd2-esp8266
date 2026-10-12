@@ -5,6 +5,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.components.blueprint.models import Blueprint, BlueprintInputs
 from homeassistant.components.blueprint.schemas import BLUEPRINT_SCHEMA
 from homeassistant.components.automation.config import PLATFORM_SCHEMA
+from homeassistant.components.script.config import SCRIPT_ENTITY_SCHEMA
+from homeassistant.components.shell_command import CONFIG_SCHEMA as SHELL_SCHEMA
 from homeassistant.util.yaml import load_yaml
 
 import asyncio
@@ -29,6 +31,10 @@ async def main():
     inputs.validate()
     config = PLATFORM_SCHEMA(inputs.async_substitute())
     print("Blueprint metadata, inputs and automation/action schema validated.")
+    package = load_yaml(str(path.parent / "epaper_images_package.yaml"))
+    SHELL_SCHEMA(package)
+    SCRIPT_ENTITY_SCHEMA(package["script"]["epaper_eigenes_bild"])
+    print("Image preparation package shell-command and script schemas validated.")
     print("No device actions executed; live behavior remains a hardware/HA test.")
     await hass.async_stop()
     temp.cleanup()

@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.1.0-beta.1
+
+- Local HTTP EPD1 image source, URL text entity and update-image button.
+- Fixed-size strip transfer to controller, CRC32 and length validation before refresh.
+- PNG/JPEG/Pillow converter, demo image and optional Home Assistant preparation script.
+- Host streaming/error tests and conversion tests; schema/source generation only.
+- No ESP8266 firmware build for this preview version; user compiles and tests hardware.
+
 ## v1.0.2
 
 - BUSY after nextPage/power-off/hibernate is no longer treated as a definitive display error.
