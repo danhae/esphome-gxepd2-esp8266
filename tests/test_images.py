@@ -1,4 +1,7 @@
 import importlib.util
+import base64
+import io
+from unittest.mock import patch
 from pathlib import Path
 import struct
 import tempfile
@@ -30,6 +33,36 @@ class ImageTests(unittest.TestCase):
         data,_ = prepare.encode(Image.new("RGB",(800,480),"white"))
         for invalid in [data[:-1], data+b"x", data[:20]+bytes([data[20]^1])+data[21:], b"FAIL"+data[4:]]:
             with self.assertRaises(ValueError): prepare.validate(invalid)
+    def test_download_png_and_convert(self):
+        png=io.BytesIO()
+        Image.new("RGB",(800,480),"black").save(png,format="PNG")
+        class Response(io.BytesIO):
+            status=200
+            def geturl(self): return "http://ha/api/eink_dashboard/id/image.png"
+        with patch.object(prepare,"urlopen",return_value=Response(png.getvalue())) as opened:
+            with Image.open(prepare.download_image("http://ha/api/eink_dashboard/id/image.png")) as image:
+                data,_=prepare.encode(image,dither=False)
+            prepare.validate(data)
+            self.assertEqual(data[16:],b"\x00"*48000)
+            self.assertEqual(opened.call_args.kwargs["timeout"],15)
+    def test_download_rejects_bad_url_status_empty_and_oversize(self):
+        for url in ["file:///etc/passwd", "http://user:pass@ha/image.png", "http://ha/image.png\n"]:
+            with self.assertRaises(ValueError): prepare.download_image(url)
+        class Response(io.BytesIO):
+            status=200
+            def geturl(self): return "http://ha/image.png"
+        for body,status in [(b"",200),(b"x"*(prepare.MAX_DOWNLOAD+1),200),(b"x",404)]:
+            response=Response(body);response.status=status
+            with patch.object(prepare,"urlopen",return_value=response):
+                with self.assertRaises(ValueError): prepare.download_image("http://ha/image.png")
+    def test_base64_cli_download_error_preserves_existing_frame(self):
+        with tempfile.TemporaryDirectory() as directory:
+            p=Path(directory)/"frame.epd";p.write_bytes(b"old-frame")
+            args=["prepare_image.py","--url-base64",base64.b64encode(b"http://ha/image.png").decode(),"--output",str(p)]
+            with patch("sys.argv",args), patch.object(prepare,"urlopen",side_effect=OSError("simulated network failure")):
+                with self.assertRaises(SystemExit) as failure: prepare.main()
+            self.assertEqual(failure.exception.code,1)
+            self.assertEqual(p.read_bytes(),b"old-frame")
     def test_atomic_replace(self):
         with tempfile.TemporaryDirectory() as directory:
             p=Path(directory)/"frame.epd"

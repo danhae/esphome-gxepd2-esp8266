@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Convert a local image to the bounded ESP8266 EPD1 wire format."""
 import argparse
+import base64
+import io
+from urllib.parse import urlsplit
+from urllib.request import Request, urlopen
 import os
 from pathlib import Path
 import struct
@@ -58,9 +62,30 @@ def atomic_write(path, data):
         if temporary is not None:
             temporary.unlink(missing_ok=True)
 
+MAX_DOWNLOAD = 8 * 1024 * 1024
+
+def download_image(url):
+    parsed = urlsplit(url)
+    if (parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username is not None
+            or any(ord(char) < 32 for char in url)):
+        raise ValueError("Image URL must be HTTP(S), without embedded credentials or control characters")
+    request = Request(url, headers={"User-Agent": "ESP8266-Epaper-Bridge/1.1", "Accept": "image/png,image/*"})
+    with urlopen(request, timeout=15) as response:
+        if response.status != 200:
+            raise ValueError("Image source must return HTTP 200")
+        if urlsplit(response.geturl()).scheme not in ("http", "https"):
+            raise ValueError("Redirect target must remain HTTP(S)")
+        data = response.read(MAX_DOWNLOAD + 1)
+    if not data or len(data) > MAX_DOWNLOAD:
+        raise ValueError("Downloaded image is empty or exceeds 8 MiB")
+    return io.BytesIO(data)
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", type=Path, required=True)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--input", type=Path)
+    source.add_argument("--url")
+    source.add_argument("--url-base64", help="Shell-safe URL transport for Home Assistant")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--preview", type=Path)
     parser.add_argument("--fit", choices=["contain", "cover", "stretch"], default="contain")
@@ -70,10 +95,16 @@ def main():
     args = parser.parse_args()
     if args.contrast <= 0:
         parser.error("--contrast must be greater than zero")
-    if args.input.resolve() == args.output.resolve():
+    if args.input and args.input.resolve() == args.output.resolve():
         parser.error("Input and output must be different files")
     try:
-        with Image.open(args.input) as image:
+        source = args.input
+        if args.url_base64 is not None:
+            url = base64.b64decode(args.url_base64, validate=True).decode("utf-8")
+            source = download_image(url)
+        elif args.url:
+            source = download_image(args.url)
+        with Image.open(source) as image:
             data, preview = encode(image, fit=args.fit, dither=not args.no_dither,
                                    invert=args.invert, contrast=args.contrast)
         validate(data)

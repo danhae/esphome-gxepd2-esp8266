@@ -3,7 +3,15 @@
 NodeMCU AMICA / ESP8266, Waveshare 7,5 Zoll 800×480 Schwarz-Weiß,
 Driver HAT Rev. 2.2. Kein ESP32-Support.
 
-## Neu: eigene Bilder (v1.1.0-beta.1)
+## E-Ink Dashboard verbinden
+
+Die installierte HACS-Integration `cryptomilk/hass-eink-dashboard` übernimmt
+die Bildgestaltung. [Verbindungsanleitung](docs/EINK_DASHBOARD.md): zwei HA-
+Dateien kopieren, Image-Entität und Bildbutton im neuen Script auswählen.
+Die Dashboard-ID wird automatisch ermittelt; das Script lädt und konvertiert
+PNG und drückt erst danach den Bildbutton. Kein zusätzlicher Renderer.
+
+## Eigene Bilder (v1.1.0-beta.2)
 
 Fotos, Text und beliebige Grafiken außerhalb des ESP8266 als Bild vorbereiten.
 Die Firmware lädt eine **EPD1-Datei** von einer frei einstellbaren lokalen

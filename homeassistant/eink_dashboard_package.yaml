@@ -1,0 +1,90 @@
+# Requires /config/epaper/prepare_image.py from this release.
+# Add as /config/packages/epaper_eink_dashboard.yaml with packages enabled.
+input_text:
+  epaper_dashboard_png_url:
+    name: E-Paper Dashboard PNG-URL
+    max: 255
+    mode: text
+    icon: mdi:link
+
+shell_command:
+  epaper_dashboard_vorbereiten: >-
+    python3 /config/epaper/prepare_image.py
+    --url-base64 "{{ states('input_text.epaper_dashboard_png_url') | base64_encode }}"
+    --output /config/www/epaper/frame.epd
+    --preview /config/www/epaper/preview.png
+    --no-dither
+
+script:
+  epaper_eink_dashboard_aktualisieren:
+    alias: E-Paper — E-Ink Dashboard aktualisieren
+    mode: single
+    fields:
+      dashboard_image:
+        name: Bild des E-Ink Dashboards
+        required: true
+        selector:
+          entity:
+            filter:
+              domain: image
+              integration: eink_dashboard
+      bild_button:
+        name: E-Paper Bild aktualisieren
+        required: true
+        selector:
+          entity:
+            filter:
+              domain: button
+    sequence:
+      - variables:
+          dashboard_entry: "{{ config_entry_id(dashboard_image) }}"
+      - if:
+          - condition: template
+            value_template: "{{ not dashboard_entry }}"
+        then:
+          - stop: E-Ink-Dashboard-Konfiguration nicht gefunden
+            error: true
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.epaper_dashboard_png_url
+        data:
+          value: "http://127.0.0.1:8123/api/eink_dashboard/{{ dashboard_entry }}/image.png"
+      - action: shell_command.epaper_dashboard_vorbereiten
+        response_variable: preparation
+      - if:
+          - condition: template
+            value_template: "{{ preparation.returncode != 0 }}"
+        then:
+          - action: persistent_notification.create
+            data:
+              title: E-Paper — Dashboard-Konvertierung fehlgeschlagen
+              message: "{{ preparation.stderr }}"
+          - stop: Dashboard-Konvertierung fehlgeschlagen
+            error: true
+      - action: button.press
+        target:
+          entity_id: "{{ bild_button }}"
+
+automation:
+  - id: epaper_dashboard_datei_vorbereiten
+    alias: E-Paper — Dashboard-Datei alle fünf Minuten vorbereiten
+    mode: single
+    max_exceeded: silent
+    triggers:
+      - trigger: time_pattern
+        minutes: "/5"
+    conditions:
+      - condition: template
+        value_template: >-
+          {{ states('input_text.epaper_dashboard_png_url').startswith(('http://', 'https://')) }}
+    actions:
+      - action: shell_command.epaper_dashboard_vorbereiten
+        response_variable: preparation
+      - if:
+          - condition: template
+            value_template: "{{ preparation.returncode != 0 }}"
+        then:
+          - action: system_log.write
+            data:
+              level: error
+              message: "E-Paper-Konvertierung fehlgeschlagen: {{ preparation.stderr }}"

@@ -72,3 +72,10 @@ Dateien, 404, Stillstand, Gesamtzeitlimit, Rendering-Sperre, URL-/Heap-Grenzen
 und BUSY LOW nach Hibernate erfolgreich geprüft. Mocks bestätigen keine
 ESP8266-Linkbarkeit, IRAM-/RAM-Werte, WLAN-Latenzen oder Displayqualität.
 Sämtliche neuen Hardwareprüfungen sind offen.
+
+## v1.1.0-beta.2 — E-Ink Dashboard
+
+Keine ESP8266-Firmware kompiliert. Display-C++ unverändert zu beta.1.
+ESPHome-Konfiguration/Quellgenerierung, PNG-Download-/Format-/Fehlerpfadtests,
+Host-Streifenübertragung und HA-Package-Schemas/Template-Shellescaping geprüft.
+Eine echte Verbindung zur privaten HA-Instanz und neue Hardwaretests sind offen.

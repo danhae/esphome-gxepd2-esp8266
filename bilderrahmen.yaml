@@ -30,7 +30,7 @@ external_components:
   - source:
       type: git
       url: https://github.com/danhae/esphome-gxepd2-esp8266
-      ref: v1.1.0-beta.1
+      ref: v1.1.0-beta.2
       path: components
     components: [gxepd2_frame]
 

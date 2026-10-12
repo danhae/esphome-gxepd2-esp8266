@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.1.0-beta.2
+
+- Adapter fetches PNG from installed E-Ink Dashboard; rendering remains in that integration.
+- HA package selects the dashboard Image entity, derives config entry ID and invokes the display button after conversion.
+- Shell-safe Base64 URL transport, bounded HTTP(S) download and five-minute file preparation.
+- New HTTP/error tests and HA package schema/template validation; display C++ unchanged, no firmware build.
+
 ## v1.1.0-beta.1
 
 - Local HTTP EPD1 image source, URL text entity and update-image button.

@@ -13,7 +13,7 @@ BUILD.mkdir(exist_ok=True)
 source = (ROOT / "bilderrahmen.yaml").read_text()
 remote = """      type: git
       url: https://github.com/danhae/esphome-gxepd2-esp8266
-      ref: v1.1.0-beta.1
+      ref: v1.1.0-beta.2
       path: components"""
 if source.count(remote) != 1:
     raise SystemExit("Expected exactly one pinned external component source")

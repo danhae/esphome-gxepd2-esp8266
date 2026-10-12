@@ -35,6 +35,21 @@ async def main():
     SHELL_SCHEMA(package)
     SCRIPT_ENTITY_SCHEMA(package["script"]["epaper_eigenes_bild"])
     print("Image preparation package shell-command and script schemas validated.")
+    eink = load_yaml(str(path.parent / "eink_dashboard_package.yaml"))
+    SHELL_SCHEMA(eink)
+    SCRIPT_ENTITY_SCHEMA(eink["script"]["epaper_eink_dashboard_aktualisieren"])
+    PLATFORM_SCHEMA(eink["automation"][0])
+    from homeassistant.components.input_text import CONFIG_SCHEMA as INPUT_TEXT_SCHEMA
+    INPUT_TEXT_SCHEMA(eink)
+    from homeassistant.helpers.template import Template
+    command = eink["shell_command"]["epaper_dashboard_vorbereiten"]
+    import base64
+    dangerous = 'http://host/image.png?x=";$(echo unexpected);`echo unexpected`'
+    hass.states.async_set("input_text.epaper_dashboard_png_url", dangerous)
+    rendered = Template(command, hass).async_render()
+    encoded = base64.b64encode(dangerous.encode()).decode()
+    assert encoded in rendered and "$(" not in rendered and "`" not in rendered
+    print("E-Ink Dashboard package and shell-safe URL encoding validated.")
     print("No device actions executed; live behavior remains a hardware/HA test.")
     await hass.async_stop()
     temp.cleanup()
