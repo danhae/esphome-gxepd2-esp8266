@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.0.2
+
+- BUSY after nextPage/power-off/hibernate is no longer treated as a definitive display error.
+- Per-call DEBUG timings and BUSY callback counts; slow calls warn about possible timeout only.
+- Rendering binary sensor and manual Home Assistant three-refresh test blueprint.
+- Hibernate completion wording reports the command, not physical confirmation.
+
 ## v1.0.1
 
 - The component enables PlatformIO chain+ dependency discovery itself.

@@ -36,7 +36,7 @@ void GxEPD2Frame::request_test_image() {
     return;
   }
   rendering_ = true;  // Set in the button action, before returning to the API.
-  busy_failed_ = false;
+  deadline_exceeded_ = false;
   started_at_ = millis();
   phase_ = Phase::START;
   ESP_LOGW(TAG, "Testbild startet; Heap=%u", ESP.getFreeHeap());
@@ -44,12 +44,28 @@ void GxEPD2Frame::request_test_image() {
 
 void GxEPD2Frame::busy_callback_(const void *parameter) {
   auto *self = const_cast<GxEPD2Frame *>(static_cast<const GxEPD2Frame *>(parameter));
-  // The driver has a 10-second BUSY timeout. A stuck LOW after a call is
-  // checked in loop(). Never recursively call App.loop() from this callback.
+  const uint32_t start = micros();
   App.feed_wdt();
-  delay(1);  // ESP8266 SDK/Wi-Fi and watchdog get CPU time.
+  delay(1);  // SDK/Wi-Fi; never call App.loop() recursively.
+  self->busy_callback_us_ += micros() - start;
+  self->busy_callback_count_++;
   if (self->rendering_ && millis() - self->started_at_ > 60000)
-    self->busy_failed_ = true;
+    self->deadline_exceeded_ = true;
+}
+
+void GxEPD2Frame::begin_operation_() {
+  operation_started_at_ = millis();
+  busy_callback_us_ = 0;
+  busy_callback_count_ = 0;
+}
+
+void GxEPD2Frame::log_operation_(const char *name) {
+  const uint32_t duration = millis() - operation_started_at_;
+  ESP_LOGD(TAG, "%s: Dauer=%u ms, BUSY-Callbacks=%u, Callbackzeit=%u ms, BUSY=%s",
+           name, static_cast<unsigned>(duration), static_cast<unsigned>(busy_callback_count_),
+           static_cast<unsigned>(busy_callback_us_ / 1000), digitalRead(12) == LOW ? "LOW" : "HIGH");
+  if (duration >= 10000)
+    ESP_LOGW(TAG, "%s dauerte >=10s; moeglicher BUSY-Timeout. GxEPD2 meldet echte Timeouts nur seriell.", name);
 }
 
 void GxEPD2Frame::draw_page_() {
@@ -70,7 +86,7 @@ void GxEPD2Frame::draw_page_() {
 
 void GxEPD2Frame::finish_() {
   ESP_LOGW(TAG, "%s; Dauer=%u ms, Heap=%u",
-           busy_failed_ ? "Displayfehler/BUSY; Auftrag beendet" : "Testbild beendet, Hibernate",
+           deadline_exceeded_ ? "Auftragszeitlimit ueberschritten; Hibernate gesendet" : "Renderdurchlauf beendet; Hibernate gesendet",
            static_cast<unsigned>(millis() - started_at_), ESP.getFreeHeap());
   rendering_ = false;
   phase_ = Phase::IDLE;
@@ -80,7 +96,7 @@ void GxEPD2Frame::loop() {
   if (!rendering_) return;
   App.feed_wdt();
   if (millis() - started_at_ > 60000) {
-    busy_failed_ = true;
+    deadline_exceeded_ = true;
     phase_ = Phase::HIBERNATE;
   }
   switch (phase_) {
@@ -93,16 +109,17 @@ void GxEPD2Frame::loop() {
       break;
     case Phase::PAGE: {
       draw_page_();
+      begin_operation_();
       const bool more = display_.nextPage();
-      // T7 BUSY is active LOW. GxEPD2 returns after its bounded timeout,
-      // but has no success return value for the physical refresh.
-      if (digitalRead(12) == LOW) busy_failed_ = true;
-      if (!more || busy_failed_) phase_ = Phase::HIBERNATE;
+      log_operation_("nextPage");
+      if (!more || deadline_exceeded_) phase_ = Phase::HIBERNATE;
       break;
     }
     case Phase::HIBERNATE:
+      begin_operation_();
       display_.hibernate();
-      if (digitalRead(12) == LOW) busy_failed_ = true;
+      log_operation_("hibernate");
+      // BUSY after power-off/deep-sleep is diagnostic only, not a refresh result.
       finish_();
       break;
     case Phase::IDLE:

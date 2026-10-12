@@ -1,0 +1,100 @@
+blueprint:
+  name: E-Paper — drei Test-Refreshs
+  description: >-
+    Manuell über Ausführen starten. Drei Refreshs, jeweils Rendering abwarten
+    und anschließend 30 Sekunden Pause. Nur mit Firmware v1.0.2 oder neuer.
+    Sichtbares Bild und Hibernate am Gerät prüfen. Nicht zusätzlich drücken.
+  domain: automation
+  input:
+    test_button:
+      name: E-Paper Testbild anzeigen
+      selector:
+        entity:
+          filter:
+            domain: button
+    rendering_sensor:
+      name: E-Paper Rendering
+      selector:
+        entity:
+          filter:
+            domain: binary_sensor
+    heap_sensor:
+      name: E-Paper Freier Heap
+      selector:
+        entity:
+          filter:
+            domain: sensor
+
+mode: single
+triggers: []
+variables:
+  rendering_entity: !input rendering_sensor
+  heap_entity: !input heap_sensor
+  results: ""
+actions:
+  - if:
+      - condition: template
+        value_template: "{{ not is_state(rendering_entity, 'off') }}"
+    then:
+      - action: persistent_notification.create
+        data:
+          title: E-Paper-Test abgebrochen
+          message: Rendering ist aktiv oder nicht verfügbar. Bitte später erneut starten.
+      - stop: Rendering nicht bereit
+        error: true
+  - repeat:
+      count: 3
+      sequence:
+        - variables:
+            heap_before: "{{ states(heap_entity) }}"
+        - action: button.press
+          target:
+            entity_id: !input test_button
+        - wait_template: "{{ is_state(rendering_entity, 'on') }}"
+          timeout: "00:00:20"
+          continue_on_timeout: true
+        - if:
+            - condition: template
+              value_template: "{{ not wait.completed }}"
+          then:
+            - action: persistent_notification.create
+              data:
+                title: E-Paper-Test abgebrochen
+                message: "Durchlauf {{ repeat.index }}: Rendering-Start nicht innerhalb von 20 Sekunden erkannt."
+            - stop: Rendering-Start fehlt
+              error: true
+        - wait_template: "{{ not is_state(rendering_entity, 'on') }}"
+          timeout: "00:01:30"
+          continue_on_timeout: true
+        - if:
+            - condition: template
+              value_template: "{{ not wait.completed or not is_state(rendering_entity, 'off') }}"
+          then:
+            - action: persistent_notification.create
+              data:
+                title: E-Paper-Test abgebrochen
+                message: "Durchlauf {{ repeat.index }}: Rendering hat nicht beendet oder die Verbindung ging verloren."
+            - stop: Rendering-Ende fehlt
+              error: true
+        - delay: "00:00:30"
+        - if:
+            - condition: template
+              value_template: "{{ not is_state(rendering_entity, 'off') }}"
+          then:
+            - action: persistent_notification.create
+              data:
+                title: E-Paper-Test abgebrochen
+                message: Rendering-Status nach der Pause nicht bereit.
+            - stop: Rendering-Status nach Pause nicht bereit
+              error: true
+        - variables:
+            results: >-
+              {{ results }}Durchlauf {{ repeat.index }}: Heap vorher {{ heap_before }} B,
+              nach Pause {{ states(heap_entity) }} B; Rendering beendet.
+  - action: persistent_notification.create
+    data:
+      title: E-Paper-Test — drei Durchläufe beendet
+      message: >-
+        {{ results }}
+        Die Werte sind empfangene Sensor-Stichproben. Sichtbares Bild,
+        Schlafzustand und Resetfreiheit bitte anhand von Display und Logs prüfen.

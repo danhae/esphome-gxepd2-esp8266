@@ -49,3 +49,13 @@ Compilerobjekte und ohne `platformio_options` in der Test-YAML erfolgreich
 durchgeführt. Die Komponente setzt `lib_ldf_mode: chain+` selbst. Adafruit
 GFX und BusIO wurden neu kompiliert; der Headerfehler tritt im Test nicht auf.
 RAM: 31612 Byte; Flash: 387179 Byte. Hardwaretests bleiben offen.
+
+## v1.0.2 — Diagnose und Home-Assistant-Test
+
+ESPHome 2026.9.1: tatsächlich erfolgreich kompiliert. Statisches RAM:
+31784 Byte; Flash: 389367 Byte. GxEPD2 bleibt bei 16 Zeilen / 1600 Byte.
+Blueprint-Metadaten, Inputs, Templates und Automation-/Aktionsschema wurden
+gegen eine isolierte Home-Assistant-2026.10.1-Installation validiert.
+Keine Aktionen auf echten Geräten ausgeführt; der Live-Automationstest ist offen.
+BUSY nach Hibernate ist jetzt nur eine Diagnose. Zeitmessungen sind pro
+Bibliotheksaufruf; sie ersetzen keine eindeutige Timeout-Rückmeldung.

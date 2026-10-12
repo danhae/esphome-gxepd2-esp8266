@@ -24,7 +24,7 @@ diese ESPHome-Implementierung wurde noch nicht am Gerät getestet.
 
 Die Komponente wird automatisch von GitHub geladen. Zusätzliche lokale
 Komponentendateien sind für diesen Installationsweg nicht erforderlich.
-Die YAML verwendet den festen Tag `v1.0.1`; Änderungen auf `main` werden
+Die YAML verwendet den festen Tag `v1.0.2`; Änderungen auf `main` werden
 nicht ungefragt übernommen.
 
 ```yaml
@@ -32,7 +32,7 @@ external_components:
   - source:
       type: git
       url: https://github.com/danhae/esphome-gxepd2-esp8266
-      ref: v1.0.1
+      ref: v1.0.2
       path: components
     components: [gxepd2_frame]
 ```
@@ -100,12 +100,18 @@ Watchdog und das ESP8266-SDK bedient; die native ESPHome-API und OTA können
 während eines solchen Aufrufs kurz verzögert reagieren. Keine rekursiven
 Aufrufe von `App.loop()`.
 
-GxEPD2 begrenzt eine einzelne BUSY-Wartezeit auf 10 Sekunden. Ein weiterhin
-LOW liegender BUSY-Pin nach einer Seite wird als Fehler behandelt. Eine
-Auftragsdauer über 60 Sekunden wird zwischen Bibliotheksaufrufen erkannt;
-das ist keine harte Abbruchfrist innerhalb eines Aufrufs. Anschließend wird
-Hibernate versucht und die Sperre gelöst. Die Bibliothek liefert keinen
-verlässlichen Rückgabewert für den physisch angezeigten Bildinhalt.
+GxEPD2 begrenzt eine einzelne BUSY-Wartezeit auf 10 Sekunden. BUSY-Pegel
+nach einer Seite oder Hibernate werden nur diagnostisch protokolliert, nicht
+pauschal als Displayfehler gewertet. DEBUG zeigt je nextPage-/Hibernate-Aufruf
+die Dauer, Zahl der BUSY-Callbacks, Zeit innerhalb dieser Callbacks und den
+abschließenden Pinpegel. Callbackzeit ist weder die komplette BUSY-Wartezeit
+noch eine einzelne Wartephase: ein GxEPD2-Aufruf kann mehrere Wartephasen enthalten.
+Aufrufe ab 10 Sekunden werden als langsame Aufrufe mit möglichem Timeout
+gekennzeichnet. GxEPD2 stellt tatsächliche BUSY-Timeouts nicht als Rückgabewert
+bereit; seine eindeutige Meldung `Busy Timeout!` ist über UART sichtbar.
+Eine Auftragsdauer über 60 Sekunden wird zwischen Aufrufen erkannt; danach
+wird Hibernate versucht. `Hibernate gesendet` bestätigt den Softwareaufruf,
+nicht den physisch gemessenen Schlafzustand.
 
 Standard-Logging: WARN, mit Start-, Ende- und Fehlerausgaben. Für Diagnose
 `logger.level: DEBUG` setzen. Der Debug-Sensor liefert freien Heap alle
@@ -161,3 +167,18 @@ Dieses Projekt: GPL-3.0, siehe [LICENSE](LICENSE). Abhängigkeiten behalten
 ihre eigenen Lizenzen; GxEPD2 wird regulär als Bibliothek heruntergeladen.
 Keine echten Zugangsdaten, Home-Assistant-Konfigurationen oder Screenshots
 werden in diesem Repository gespeichert.
+
+## Automatischer Home-Assistant-Test
+
+[Blueprint](homeassistant/epaper_test_blueprint.yaml) importieren und eine
+Automation daraus erstellen. Button, Rendering-Binary-Sensor und Heap-Sensor
+des Bilderrahmens auswählen. Die Automation besitzt keinen Zeitplan und
+wird manuell über **Ausführen** gestartet. Sie wartet auf Rendering-Start und
+-Ende, lässt nach jedem Durchlauf 30 Sekunden verstreichen und wiederholt
+drei Mal. Bei fehlendem Start, Zeitüberschreitung oder nicht verfügbarem
+Rendering-Status stoppt sie mit einer Benachrichtigung. Der Abschlussbericht
+zeigt die von Home Assistant empfangenen Heap-Stichproben; er bewertet kein
+sichtbares Bild und bestätigt weder Hibernate noch OTA. Während des Tests
+den Displaybutton nicht zusätzlich manuell drücken.
+
+Für Diagnose vorübergehend `logger.level: DEBUG` setzen.

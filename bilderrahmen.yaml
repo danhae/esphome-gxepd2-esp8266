@@ -30,7 +30,7 @@ external_components:
   - source:
       type: git
       url: https://github.com/danhae/esphome-gxepd2-esp8266
-      ref: v1.0.1
+      ref: v1.0.2
       path: components
     components: [gxepd2_frame]
 
@@ -53,3 +53,11 @@ sensor:
     free:
       name: E-Paper Freier Heap
       id: epaper_freier_heap
+
+binary_sensor:
+  - platform: template
+    name: E-Paper Rendering
+    id: epaper_rendering
+    entity_category: diagnostic
+    lambda: |-
+      return id(epaper_frame).is_rendering();
